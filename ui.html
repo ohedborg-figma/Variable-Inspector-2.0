@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Variable Inspect 2.0</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+      padding: 20px;
+      box-sizing: border-box;
+      background-color: #f7f9fc;
+      color: #333;
+      overflow: hidden;
+    }
+
+    #placeholder {
+      text-align: center;
+      margin-top: 100px;
+    }
+
+    #placeholder img {
+      max-width: 300px;
+      margin-bottom: 20px;
+    }
+
+    #placeholder h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    #placeholder p {
+      font-size: 16px;
+      color: #555;
+    }
+
+    #preview-container {
+      text-align: center;
+      margin-bottom: 20px;
+      overflow-y: auto;
+      max-height: 30%;
+    }
+
+    #preview {
+      max-width: 50%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
+    #inspector-title {
+      display: none;
+      flex-shrink: 0;
+      text-align: center;
+      width: 100%;
+      margin-top: 20px;
+      position: relative;
+    }
+
+    #inspector-title img {
+      vertical-align: middle;
+      width: 24px;
+      height: 24px;
+      margin-right: 10px;
+    }
+
+    #component-name {
+      display: block;
+      font-size: 20px;
+      margin-top: 5px;
+      color: #555;
+    }
+
+    #bound-variables-container {
+      width: 100%;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .accordion {
+      background-color: #f9f9f9;
+      color: #444;
+      cursor: pointer;
+      padding: 10px;
+      width: 100%;
+      text-align: left;
+      border: none;
+      outline: none;
+      transition: 0.4s;
+      font-size: 16px;
+      font-weight: bold;
+      border-bottom: 1px solid #ddd;
+      margin-top: 10px;
+      position: relative;
+    }
+
+    .active, .accordion:hover {
+      background-color: #ddd;
+    }
+
+    .accordion:after {
+      content: '\25BC';
+      color: #777;
+      font-weight: bold;
+      position: absolute;
+      right: 20px;
+      transform: rotate(0deg);
+      transition: transform 0.4s;
+    }
+
+    .active:after {
+      transform: rotate(180deg);
+    }
+
+    .panel {
+      padding: 0 18px;
+      background-color: white;
+      display: none;
+      overflow: hidden;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .variable-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .variable-name {
+      font-weight: bold;
+      flex: 1;
+      color: #555;
+    }
+
+    .variable-value {
+      flex: 2;
+      text-align: right;
+      color: #777;
+    }
+
+    #show-all-container {
+      margin-top: 10px;
+    }
+
+    #show-all-label {
+      font-size: 14px;
+      font-weight: bold;
+      margin-left: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="placeholder">
+    <img src="https://cdn4.iconfinder.com/data/icons/logos-brands-in-colors/3000/figma-logo-512.png" alt="Please select a component">
+    <h1>Welcome to Variable Inspect 2.0</h1>
+    <p>Please select a component to inspect its variables.</p>
+  </div>
+  <div id="preview-container">
+    <img id="preview" src="">
+  </div>
+  <h1 id="inspector-title">
+    <img src="https://flaticons.net/icon.php?slug_category=science-technology&slug_icon=magnifying-glass&icon_size=256&icon_color=000000&icon_flip=&icon_rotate=0" alt="icon">
+    Inspecting: <span id="component-name"></span>
+  </h1>
+  <div id="show-all-container">
+    <input type="checkbox" id="show-all-checkbox">
+    <label id="show-all-label" for="show-all-checkbox">Show All Variables</label>
+  </div>
+  <div id="bound-variables-container"></div>
+
+  <script>
+    const showAllCheckbox = document.getElementById('show-all-checkbox');
+    let boundVariables = [];
+
+    showAllCheckbox.addEventListener('change', () => {
+      renderVariables(boundVariables);
+    });
+
+    window.onmessage = async (event) => {
+      const { type, data } = event.data.pluginMessage;
+
+      if (type === 'selected-component') {
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('preview-container').style.display = 'block';
+        document.getElementById('inspector-title').style.display = 'block';
+        document.getElementById('component-name').textContent = `${data.name}`;
+        document.getElementById('show-all-container').style.display = 'block';
+        document.getElementById('bound-variables-container').style.display = 'block';
+
+        boundVariables = data.boundVariables;
+        document.getElementById('preview').src = data.preview;
+
+        renderVariables(boundVariables);
+      }
+
+      if (type === 'no-selection') {
+        document.getElementById('placeholder').style.display = 'block';
+        document.getElementById('preview-container').style.display = 'none';
+        document.getElementById('inspector-title').style.display = 'none';
+        document.getElementById('show-all-container').style.display = 'none';
+        document.getElementById('bound-variables-container').style.display = 'none';
+
+        document.getElementById('bound-variables-container').innerHTML = '';
+      }
+    };
+
+    function renderVariables(variables) {
+      const container = document.getElementById('bound-variables-container');
+      container.innerHTML = ''; // Clear previous data
+
+      const showAll = showAllCheckbox.checked;
+
+      if (showAll) {
+        const uniqueVariables = [];
+        const seenValues = new Set();
+
+        variables.forEach(variable => {
+          const valueString = `${variable.property}-${variable.name}-${variable.value}`;
+          if (!seenValues.has(valueString)) {
+            seenValues.add(valueString);
+            uniqueVariables.push(variable);
+          }
+        });
+
+        uniqueVariables.forEach(variable => {
+          const variableItem = document.createElement('div');
+          variableItem.classList.add('variable-item');
+
+          const propertyDiv = document.createElement('div');
+          propertyDiv.classList.add('variable-name');
+          propertyDiv.textContent = variable.property;
+
+          const nameDiv = document.createElement('div');
+          nameDiv.classList.add('variable-name');
+          nameDiv.textContent = variable.name;
+
+          const valueDiv = document.createElement('div');
+          valueDiv.classList.add('variable-value');
+          valueDiv.textContent = variable.value;
+
+          variableItem.appendChild(propertyDiv);
+          variableItem.appendChild(nameDiv);
+          variableItem.appendChild(valueDiv);
+
+          container.appendChild(variableItem);
+        });
+      } else {
+        const variablesByProperty = variables.reduce((acc, variable) => {
+          if (!acc[variable.property]) {
+            acc[variable.property] = new Set();
+          }
+          const valueString = `${variable.name}-${variable.value}`;
+          if (!acc[variable.property].has(valueString)) {
+            acc[variable.property].add(valueString);
+            if (!acc[variable.property].variables) acc[variable.property].variables = [];
+            acc[variable.property].variables.push(variable);
+          }
+          return acc;
+        }, {});
+
+        for (const [property, { variables }] of Object.entries(variablesByProperty)) {
+          const accordion = document.createElement('button');
+          accordion.classList.add('accordion');
+          accordion.textContent = property;
+
+          const panel = document.createElement('div');
+          panel.classList.add('panel');
+
+          variables.forEach(variable => {
+            const variableItem = document.createElement('div');
+            variableItem.classList.add('variable-item');
+
+            const nameDiv = document.createElement('div');
+            nameDiv.classList.add('variable-name');
+            nameDiv.textContent = variable.name;
+
+            const valueDiv = document.createElement('div');
+            valueDiv.classList.add('variable-value');
+            valueDiv.textContent = variable.value;
+
+            variableItem.appendChild(nameDiv);
+            variableItem.appendChild(valueDiv);
+            panel.appendChild(variableItem);
+          });
+
+          container.appendChild(accordion);
+          container.appendChild(panel);
+
+          accordion.addEventListener('click', function() {
+            this.classList.toggle('active');
+            const panel = this.nextElementSibling;
+            if (panel.style.display === 'block') {
+              panel.style.display = 'none';
+            } else {
+              panel.style.display = 'block';
+            }
+          });
+        }
+      }
+    }
+  </script>
+</body>
+</html>

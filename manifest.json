@@ -1,0 +1,21 @@
+{
+  "name": "Variable Inspect 2.0",
+  "id": "1394727251085443479",
+  "api": "1.0.0",
+  "main": "code.js",
+  "capabilities": [
+    "inspect", "vscode"
+  ],
+  "enableProposedApi": false,
+  "documentAccess": "dynamic-page",
+  "editorType": [
+    "dev"
+  ],
+  "ui": "ui.html",
+  "networkAccess": {
+    "allowedDomains": [
+      "https://cdn4.iconfinder.com",
+      "https://flaticons.net"
+    ]
+  }
+}
